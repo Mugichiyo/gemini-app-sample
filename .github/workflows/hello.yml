@@ -1,0 +1,23 @@
+# ワークフローの名前（GitHubのActionsタブに表示されます）
+name: Hello World Workflow
+
+# ワークフローを起動するきっかけ（トリガー）
+on:
+  # pushイベント: mainブランチにコードがプッシュされた時
+  push:
+    branches:
+      - main
+  # workflow_dispatchイベント: 手動で実行できるようにする
+  workflow_dispatch:
+
+# 実行する具体的なお仕事（ジョブ）
+jobs:
+  # ジョブのID（好きな名前を付けられます）
+  hello-world-job:
+    # このジョブを実行する仮想マシンのOS
+    runs-on: ubuntu-latest
+    # ジョブの中で実行する個々の手順（ステップ）
+    steps:
+      # ステップ1: 「Hello World」と表示するコマンドを実行
+      - name: Say Hello
+        run: echo "Hello World! GitHub Actions is running!"
