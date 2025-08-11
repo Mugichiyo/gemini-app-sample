@@ -14,4 +14,4 @@ jobs:
           curl -s \
             -H 'Content-Type: application/json' \
             -d '{"contents":[{"parts":[{"text": "GitHub Actionsについて30文字程度で説明して。"}]}]}' \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}"
