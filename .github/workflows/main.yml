@@ -1,12 +1,17 @@
-name: First Workflow
+name: Call Gemini API
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  say-hello:
+  call-gemini-job:
     runs-on: ubuntu-latest
     steps:
-      - name: Greet
-        run: echo "Hello, GitHub Actions!"
+      - name: Ask Gemini
+        run: |
+          # curlコマンドを使ってGemini APIに質問を送信します
+          curl -s \
+            -H 'Content-Type: application/json' \
+            -d '{"contents":[{"parts":[{"text": "GitHub Actionsについて30文字程度で説明して。"}]}]}' \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}"
