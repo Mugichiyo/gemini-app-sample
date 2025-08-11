@@ -1,7 +1,52 @@
 # ワークフローの名前
 name: PR Title Summarizer
 
-# ワークフローを起動するきっかけ
+# ワークフローを起動するきっかけ (Pull Requestが開かれた時)
 on:
   pull_request:
     types: [opened]
+
+# 実行する具体的なお仕事
+jobs:
+  summarize-and-comment:
+    # このワークフローにPRへのコメント投稿を許可する
+    permissions:
+      pull-requests: write
+    # このジョブを実行する仮想マシンのOS
+    runs-on: ubuntu-latest
+    # ジョブの中で実行する個々の手順
+    steps:
+      # 手順1: リポジトリの情報を読み込む
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 手順2: Gemini APIを呼び出してタイトルを要約する
+      - name: Summarize PR Title with Gemini
+        id: gemini_call # このステップにIDを付けて後で参照できるようにする
+        run: |
+          # Gemini APIからの返答からテキスト部分だけを抽出して、次のステップで使えるように出力変数にセットする
+          gemini_response=$(curl -s -H 'Content-Type: application/json' -d '{
+            "contents": [{
+              "parts": [{
+                "text": "Pull Requestのタイトルは「${{ github.event.pull_request.title }}」です。このタスクを日本語で1、2文で要約してください。"
+              }]
+            }]
+          }' 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}')
+          
+          # レスポンスからテキストを抽出
+          summary=$(echo "$gemini_response" | jq -r '.candidates[0].content.parts[0].text')
+          
+          # 次のステップで使えるように結果を出力変数に設定
+          echo "summary_text<<EOF" >> $GITHUB_OUTPUT
+          echo "$summary" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 手順3: Geminiの返答をPull Requestにコメントする
+      - name: Create Comment on PR
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### ✨ Geminiによる自動要約
+            
+            ${{ steps.gemini_call.outputs.summary_text }}
