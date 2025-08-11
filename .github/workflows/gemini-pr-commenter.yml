@@ -1,0 +1,7 @@
+# ワークフローの名前
+name: PR Title Summarizer
+
+# ワークフローを起動するきっかけ
+on:
+  pull_request:
+    types: [opened]
