@@ -1,0 +1,72 @@
+# ワークフローの名前
+name: Rewrite File with Gemini
+
+# ワークフローを起動するきっかけ
+on:
+  # 手動で実行できるようにする
+  workflow_dispatch:
+    # ワークフロー実行時に入力項目を設ける
+    inputs:
+      file_path:
+        description: '書き換えてほしいファイルのパス (例: README.md)'
+        required: true
+        default: 'README.md'
+
+# 実行する具体的なお仕事
+jobs:
+  rewrite-and-commit:
+    # このワークフローにリポジトリへの書き込みを許可する
+    permissions:
+      contents: write
+    # このジョブを実行する仮想マシンのOS
+    runs-on: ubuntu-latest
+    # ジョブの中で実行する個々の手順
+    steps:
+      # 手順1: リポジトリのコードをチェックアウト
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 手順2: 指定されたファイルの内容を読み込む
+      - name: Read File Content
+        id: file_reader
+        run: |
+          content=$(cat "${{ github.event.inputs.file_path }}")
+          # 複数行のコンテンツを正しく扱うための工夫
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$content" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 手順3: Gemini APIを呼び出して文章を書き換える
+      - name: Rewrite Content with Gemini
+        id: gemini_call
+        run: |
+          rewritten_text=$(curl -s -H 'Content-Type: application/json' -d '{
+            "contents": [{
+              "parts": [{
+                "text": "以下の文章を、より明確でプロフェッショナルな表現に書き換えてください。元の意図は変えないでください。\n\n---\n\n${{ steps.file_reader.outputs.content }}"
+              }]
+            }]
+          }' 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}' | jq -r '.candidates[0].content.parts[0].text')
+          
+          echo "rewritten_text<<EOF" >> $GITHUB_OUTPUT
+          echo "$rewritten_text" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 手順4: 新しい内容でファイルを上書きし、コミットしてプッシュする
+      - name: Commit and Push Changes
+        run: |
+          # Gitのユーザー設定
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # ファイルを上書き
+          echo "${{ steps.gemini_call.outputs.rewritten_text }}" > "${{ github.event.inputs.file_path }}"
+          
+          # 変更があればコミットしてプッシュ
+          git add "${{ github.event.inputs.file_path }}"
+          if ! git diff --staged --quiet; then
+            git commit -m "📝 Docs: ${{ github.event.inputs.file_path }} をGeminiが自動更新"
+            git push
+          else
+            echo "No changes to commit."
+          fi
